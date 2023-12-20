@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 文字列を数値リストに変換
 def convert_string_to_list(string):
     return [int(x.strip()) for x in string.strip('[]\n').split(' ') if x.strip().isdigit()]
 
