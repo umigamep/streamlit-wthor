@@ -9,11 +9,11 @@ def convert_string_to_list(string):
 
 
 def load_and_process_data(year):
-    file_path = f"app/resources/lv18/addloss_wthor_{year}.csv"
+    file_path = f"app/resources/addloss_wthor_{year}.csv"
     df_year = pl.read_csv(file_path)
     df_year = df_year.with_columns([
-        pl.col('loss_black').map_elements(convert_string_to_list).alias('loss_by_sixmoves_black'),
-        pl.col('loss_white').map_elements(convert_string_to_list).alias('loss_by_sixmoves_white'),
+        pl.col('loss_black').map_elements(convert_string_to_list).alias('loss_black'),
+        pl.col('loss_white').map_elements(convert_string_to_list).alias('loss_white'),
         pl.lit(year).alias('year')
     ])
     return df_year
@@ -41,8 +41,8 @@ def make_df_loss(df, df_id_name):
         pl.lit(0).alias('Color'),  # Black = 0
         pl.col('blackScore').alias('Score'),
         pl.col('blackTheoreticalScore').alias('TheoreticalScore'),
-        pl.col('loss_by_sixmoves_black').alias('Player_Loss'),
-        pl.col('loss_by_sixmoves_white').alias('Opponent_Loss'),
+        pl.col('loss_black').alias('Player_Loss'),
+        pl.col('loss_white').alias('Opponent_Loss'),
         pl.col('transcript'),
         pl.col('year')
     ])
@@ -56,8 +56,8 @@ def make_df_loss(df, df_id_name):
         pl.lit(1).alias('Color'),  # White = 1
         (64 - pl.col('blackScore')).alias('Score'),
         (64 - pl.col('blackTheoreticalScore')).alias('TheoreticalScore'),
-        pl.col('loss_by_sixmoves_white').alias('Player_Loss'),
-        pl.col('loss_by_sixmoves_black').alias('Opponent_Loss'),
+        pl.col('loss_white').alias('Player_Loss'),
+        pl.col('loss_black').alias('Opponent_Loss'),
         pl.col('transcript'),
         pl.col('year')
     ])
