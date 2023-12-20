@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objs as go
 
+st.set_page_config(page_title="プレイヤーで比較")
+
 
 # 文字列を数値リストに変換
 def convert_string_to_list(string):

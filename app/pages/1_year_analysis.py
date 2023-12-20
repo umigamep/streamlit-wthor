@@ -3,6 +3,8 @@ import polars as pl
 import numpy as np
 import matplotlib.pyplot as plt
 
+st.set_page_config(page_title="年で比較")
+
 # 文字列を数値リストに変換
 def convert_string_to_list(string):
     return np.array([int(x.strip()) for x in string.strip('[]\n').split(' ') if x.strip().isdigit()])
