@@ -366,6 +366,11 @@ def scatter_group_winrate_interactive(df1_, df2_):
 
 
 # ユーザー入力の取得
+st.write(
+    """
+    # プレイヤーの石損指標の計算
+    """
+)
 selected_years = st.multiselect('集計対象の年を選択してください', options=range(2001, 2024), default=range(2019, 2024))
 
 # ボタンを押すとCSVファイルを結合
@@ -424,7 +429,12 @@ if 'df_rank_sorted' in st.session_state:
     # Streamlitで図を表示
     st.pyplot(plt)
     # グループの選択
-    st.write("## プレイヤー間の比較")
+    st.write("""
+             ## プレイヤー間の比較
+             二つのグループ間で石損指標の詳細を比較する。
+             - ランキング範囲を指定: 上記ランキングに従ってグループを作成する
+             - Player Idを直接選択: 特定のプレイヤーをIDで選択
+             """)
     col1, col2 = st.columns(2)
 
     with col1:
