@@ -1,2 +1,5 @@
 venv
+notebooks
+deplicated
 .DS_Store
+.gitignore
