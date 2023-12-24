@@ -236,7 +236,7 @@ def plot_loss_sixmoves_boxplot(df_, player_id_list1):
     plt.boxplot(group1_array, positions=positions, widths=0.3, patch_artist=True, showfliers=False, boxprops=dict(facecolor="white", color=group_colors[0]), medianprops=dict(color='black'))
 
     # 平均値のプロット
-    plt.scatter(positions, np.mean(group1_array, axis=0), color=group_colors[0], edgecolor='black', zorder=3, label=f'Group 1 (n={len(group1_array)})')
+    plt.scatter(positions, np.mean(group1_array, axis=0), color=group_colors[0], edgecolor='black', zorder=3, label=f'Top Players (n={len(group1_array)})')
 
     # プロットのカスタマイズ
     plt.title("Loss Values Boxplot and Average")
@@ -413,12 +413,17 @@ if 'df_rank_sorted' in st.session_state:
     plt.plot(np.arange(1, 31, 1), top30['Average Total Loss'] - top30['Average 24 Empty Loss'], marker='x', label='Midgame (~36)')
 
     plt.title('Top 30 Players Average Losses')
-    plt.xlabel('Rank')
+    plt.xlabel('Player Name')
     plt.ylabel('Loss Value')
-    plt.xticks(range(1, 31))  # 1位から30位までの目盛りを設定
+
+    # プレイヤー名をx軸のラベルとして設定し、90度回転
+    plt.xticks(range(1, 31), top30['Player Name'], rotation=90)
+
     plt.ylim(0, max(top30['Average Total Loss'].max(), top30['Average 24 Empty Loss'].max()) + 1)  # y軸の最小値を0に設定
     plt.grid(True)
     plt.legend()  # 凡例の表示
+    plt.tight_layout()  # レイアウトの自動調整
+    plt.show()
 
     st.write(" ### Top 30人の平均石損")
     # Streamlitでプロットを表示
@@ -431,24 +436,28 @@ if 'df_rank_sorted' in st.session_state:
     # Streamlitで図を表示
     st.pyplot(plt)
     # グループの選択
+    # グループ選択部分
     st.write("""
-             ## プレイヤー間の比較
-             二つのグループ間で石損指標の詳細を比較する。
-             - ランキング範囲を指定: 上記ランキングに従ってグループを作成する
-             - Player Idを直接選択: 特定のプレイヤーをIDで選択
-             """)
+            ## プレイヤー間の比較
+            二つのグループ間で石損指標の詳細を比較する。
+            - ランキング範囲を指定: 上記ランキングに従ってグループを作成する
+            - Player Name を直接選択: 特定のプレイヤーをIDで選択
+            """)
+
     col1, col2 = st.columns(2)
 
     with col1:
         st.write("グループ1の選択")
         selection_method_group1 = st.radio(
             "選択方法を選んでください",
-            ('ランキング範囲を指定', 'Player Idを直接選択'),
+            ('ランキング範囲を指定', 'Player Name を直接選択'),
             key="selection_method_group1"
         )
-
-        if selection_method_group1 == 'Player Idを直接選択':
-            group1_player_ids = st.multiselect("Player Idを選択", options=st.session_state['df_rank_sorted']['Player Id'].to_list(), key="group1_player_ids")
+        if selection_method_group1 == 'Player Name を直接選択':
+            # Player Nameのみを選択肢として表示
+            group1_player_names = st.multiselect("Player Nameを選択", options=st.session_state['df_rank_sorted']['Player Name'].to_list(), key="group1_player_names")
+            # 選択されたPlayer Nameに対応するPlayer Idを取得
+            group1_player_ids = st.session_state['df_rank_sorted'].filter(pl.col('Player Name').is_in(group1_player_names))['Player Id'].to_list()
         else:
             group1_rank_start = st.number_input("ランキング開始位置（n位）", min_value=1, max_value=len(st.session_state['df_rank_sorted']), key="group1_rank_start")
             group1_rank_end = st.number_input("ランキング終了位置（m位）", min_value=1, max_value=len(st.session_state['df_rank_sorted']), key="group1_rank_end")
@@ -457,24 +466,28 @@ if 'df_rank_sorted' in st.session_state:
         st.write("グループ2の選択")
         selection_method_group2 = st.radio(
             "選択方法を選んでください",
-            ('ランキング範囲を指定', 'Player Idを直接選択'),
+            ('ランキング範囲を指定', 'Player Nameを直接選択'),
             key="selection_method_group2"
         )
-
-        if selection_method_group2 == 'Player Idを直接選択':
-            group2_player_ids = st.multiselect("Player Idを選択", options=st.session_state['df_rank_sorted']['Player Id'].to_list(), key="group2_player_ids")
+        if selection_method_group2 == 'Player Name を直接選択':
+            # Player Nameのみを選択肢として表示
+            group2_player_names = st.multiselect("Player Nameを選択", options=st.session_state['df_rank_sorted']['Player Name'].to_list(), key="group2_player_names")
+            # 選択されたPlayer Nameに対応するPlayer Idを取得
+            group2_player_ids = st.session_state['df_rank_sorted'].filter(pl.col('Player Name').is_in(group2_player_names))['Player Id'].to_list()
         else:
             group2_rank_start = st.number_input("ランキング開始位置（n位）", min_value=1, max_value=len(st.session_state['df_rank_sorted']), key="group2_rank_start")
             group2_rank_end = st.number_input("ランキング終了位置（m位）", min_value=1, max_value=len(st.session_state['df_rank_sorted']), key="group2_rank_end")
 
+
+    # グループ生成ボタン
     if st.button("グループ生成"):
         group1_ids, group2_ids = [], []
-        if selection_method_group1 == 'Player Idを直接選択':
+        if selection_method_group1 == 'Player Name を直接選択':
             group1_ids = group1_player_ids
         else:
             group1_ids = get_player_ids_from_ranking(st.session_state['df_rank_sorted'], group1_rank_start, group1_rank_end)
 
-        if selection_method_group2 == 'Player Idを直接選択':
+        if selection_method_group2 == 'Player Name を直接選択':
             group2_ids = group2_player_ids
         else:
             group2_ids = get_player_ids_from_ranking(st.session_state['df_rank_sorted'], group2_rank_start, group2_rank_end)

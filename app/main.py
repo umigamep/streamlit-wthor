@@ -7,25 +7,36 @@ st.set_page_config(
 )
 
 # Title
-st.title("(開発中)wthorデータベース可視化ツール")
+st.title("WTHOR データベース可視化ツール")
 
 st.write(
     """
-    wthorデータベースの棋譜を集計・分析した結果を可視化するWebアプリです。
+    (開発中)
+
+    WTHOR データベースの棋譜を集計・AIで分析した結果を可視化するWebアプリです。
 
     左のタブから分析観点を選べます。
     
-    - year_analysis: 年ごとのトッププレイヤーの石損の指標を比較します
-    - player_analysis: プレイヤーごとの石損指標を比較します
-    - search_games: (開発中)着手の統計情報や棋譜からゲームを検索する機能です
+    - year analysis: 年ごとのトッププレイヤーの石損の指標を比較します
+    - player analysis: プレイヤーごとの石損指標を比較します
+    - search games: (開発中)着手の統計情報や棋譜からゲームを検索する機能です
 
     ### 参考リンク
 
-    - [wthorデータベース](https://www.ffothello.org/informatique/la-base-wthor/)
+    - [WTHOR データベース](https://www.ffothello.org/informatique/la-base-wthor/)
         - フランスオセロ連盟が公開している棋譜データベース
+    - [オセロの棋譜データベース WTHOR の読み込み方](https://qiita.com/tanaka-a/items/e21d32d2931a24cfdc97)
+        - wthor 形式のファイルを CSV に変換するのに活用させていただきました
     - [edax](https://github.com/abulmo/edax-reversi)
-        - 解析にLv18+手持ちのbookを使用しました
+        - 強力なオセロAI。解析に Lv18 + 手持ちの book を使用しました
     
+    ### 注意
+    
+    - WTHOR データベースに含まれる対局には一定のバイアスがあることに留意してご活用ください
+        - 現在は2001年以降のデータが用いられています
+        - 2023年のデータは2023/12/8に取得したものを用いています
+    - AIの評価は必ずしも正確で無い場合があります
+    - データベース内で同一人物(id)に複数の名前が登録されている場合に、結果の表示に現在の名前が反映されないことがあります
 
     """
 )
