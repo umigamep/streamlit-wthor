@@ -6,10 +6,14 @@ import plotly.graph_objs as go
 
 st.set_page_config(page_title="プレイヤーで比較")
 
+ENDGAME_MOVE = 40
 
 # 文字列を数値リストに変換
 def convert_string_to_list(string):
     return np.array([int(x.strip()) for x in string.strip('[]\n').split(' ') if x.strip().isdigit()])
+
+def convert_csvstring_to_list(string):
+    return np.array([int(x.strip()) for x in string.strip('[]\n').split(', ') if x.strip().isdigit()])
 
 
 def load_and_process_data(year):
@@ -18,6 +22,7 @@ def load_and_process_data(year):
     df_year = df_year.with_columns([
         pl.col('loss_black').map_elements(convert_string_to_list).alias('loss_black'),
         pl.col('loss_white').map_elements(convert_string_to_list).alias('loss_white'),
+        pl.col('blackscores').map_elements(convert_csvstring_to_list).alias('blackscores'),
         pl.lit(year).alias('year')
     ])
     return df_year
@@ -33,7 +38,7 @@ def load_and_combine_csv(years):
             else:
                 all_year_df = pl.concat([all_year_df, df_year])
         except FileNotFoundError:
-            st.error(f'app/resources/lv18/addloss_wthor_{year}.csv が見つかりません。')
+            st.error(f'app/resources/addloss_wthor_{year}.csv が見つかりません。')
 
     return all_year_df
 
@@ -42,6 +47,12 @@ def pad_list_to_length_60(lst):
     """リストを長さ60に拡張する。必要に応じて0で埋める"""
     return np.array(lst.tolist() + [0] * (60 - len(lst)))
 
+def pad_scores_to_length_60(lst):
+    """リストを長さ60に拡張する。必要に応じて0で埋める"""
+    if len(lst) < 60:
+        return np.array(lst.tolist() + [0] * (60 - len(lst)))
+    else:
+        return lst
 
 def make_df_id_name(df):
     df_black = df.select([
@@ -64,6 +75,7 @@ def make_df_loss(df, df_id_name):
         pl.col('tournamentId'),
         pl.lit(0).alias('Color'),  # Black = 0
         pl.col('blackScore').alias('Score'),
+        pl.col('blackscores').alias('scores'),
         pl.col('blackTheoreticalScore').alias('TheoreticalScore'),
         pl.col('loss_black').alias('Player_Loss'),
         pl.col('loss_white').alias('Opponent_Loss'),
@@ -72,6 +84,7 @@ def make_df_loss(df, df_id_name):
     ])
 
     # White プレイヤー用の計算
+
     df_loss_white = df.filter(pl.col('whitePlayerId').is_in(df_id_name['PlayerId']))
     df_loss_white = df_loss_white.with_columns([
         pl.col('whitePlayerId').alias('PlayerId'),
@@ -79,6 +92,7 @@ def make_df_loss(df, df_id_name):
         pl.col('tournamentId'),
         pl.lit(1).alias('Color'),  # White = 1
         (64 - pl.col('blackScore')).alias('Score'),
+        pl.col('blackscores').map_elements(lambda x: -x).alias('scores'),
         (64 - pl.col('blackTheoreticalScore')).alias('TheoreticalScore'),
         pl.col('loss_white').alias('Player_Loss'),
         pl.col('loss_black').alias('Opponent_Loss'),
@@ -91,13 +105,16 @@ def make_df_loss(df, df_id_name):
 
     df_loss = df_loss.with_columns([
         pl.col('Player_Loss').map_elements(lambda x: pad_list_to_length_60(x)).alias('Player_Loss'),
-        pl.col('Opponent_Loss').map_elements(lambda x: pad_list_to_length_60(x)).alias('Opponent_Loss')
+        pl.col('Opponent_Loss').map_elements(lambda x: pad_list_to_length_60(x)).alias('Opponent_Loss'),
+        pl.col('scores').map_elements(lambda x: pad_list_to_length_60(x)).alias('scores'),
     ])
 
-    # Sum_Player_Loss と Sum_Player_Loss_24Empty の計算
+    # Sum_Player_Loss と Sum_Player_Loss_20Empty の計算
     df_loss = df_loss.with_columns([
         pl.col('Player_Loss').map_elements(lambda x: sum(x)).alias('Sum_Player_Loss'),
-        pl.col('Player_Loss').map_elements(lambda x: sum(x[-24:])).alias('Sum_Player_Loss_24Empty')
+        pl.col('Player_Loss').map_elements(lambda x: sum(x[-(60-ENDGAME_MOVE):])).alias(f'Sum_Player_Loss_{60-ENDGAME_MOVE}Empty'),
+        pl.col('Opponent_Loss').map_elements(lambda x: sum(x)).alias('Sum_Opponent_Loss'),
+        pl.col('Opponent_Loss').map_elements(lambda x: sum(x[-(60-ENDGAME_MOVE):])).alias(f'Sum_Opponent_Loss_{60-ENDGAME_MOVE}Empty')
     ])
 
     return df_loss
@@ -105,25 +122,39 @@ def make_df_loss(df, df_id_name):
 
 def calculate_result(score):
     if score > 32:
-        return 1
+        return 1.
     elif score == 32:
         return 0.5
     else:
-        return 0
+        return 0.
 
+def calculate_score_endgame(score_list):
+    # 配列の長さが20未満の場合、Noneを返す
+
+    # 配列の後ろから20番目の値を取得
+    value = score_list[ENDGAME_MOVE]
+
+    # 条件に基づいて値を割り当てる
+    if value > 0:
+        return 1.
+    elif value < 0:
+        return 0.
+    else:
+        return 0.5
 
 def calculate_average_sum_player_loss_with_name(df_loss, df_id_name, count_min=10):
     # 1. 勝利と理論上の勝利の計算
     df_loss = df_loss.with_columns([
         pl.col('Score').map_elements(calculate_result).alias('Win'),
-        pl.col('TheoreticalScore').map_elements(calculate_result).alias('Win Theoretical')
+        #pl.col('TheoreticalScore').map_elements(calculate_result).alias('Win Theoretical')
+        pl.col('scores').map_elements(calculate_score_endgame).alias('Win Theoretical')
     ])
 
     # 2. プレイヤーごとの集計
     grouped = df_loss.group_by('PlayerId').agg([
         pl.col('Sum_Player_Loss').mean().alias('Average_Sum_Player_Loss'),
         pl.col('Sum_Player_Loss').count().alias('Record_Count'),
-        pl.col('Sum_Player_Loss_24Empty').mean().alias('Average_Sum_Player_Loss_24Empty'),
+        pl.col(f'Sum_Player_Loss_{60-ENDGAME_MOVE}Empty').mean().alias(f'Average_Sum_Player_Loss_{60-ENDGAME_MOVE}Empty'),
         pl.col('Win').mean().alias('Win_Rate'),
         pl.col('Win Theoretical').mean().alias('Win_Rate_Theoretical')
     ])
@@ -141,7 +172,7 @@ def calculate_average_sum_player_loss_with_name(df_loss, df_id_name, count_min=1
     # 6. 数値の丸め処理
     df_result = df_result.with_columns([
         pl.col('Average_Sum_Player_Loss').round(2).alias('Average_Sum_Player_Loss'),
-        pl.col('Average_Sum_Player_Loss_24Empty').round(2).alias('Average_Sum_Player_Loss_24Empty'),
+        pl.col(f'Average_Sum_Player_Loss_{60-ENDGAME_MOVE}Empty').round(2).alias(f'Average_Sum_Player_Loss_{60-ENDGAME_MOVE}Empty'),
         (pl.col('Win_Rate') * 100).round(1).alias('Win_Rate'),
         (pl.col('Win_Rate_Theoretical') * 100).round(1).alias('Win_Rate_Theoretical')
     ])
@@ -152,13 +183,13 @@ def calculate_average_sum_player_loss_with_name(df_loss, df_id_name, count_min=1
         (pl.col('Win Theoretical') - pl.col('Win')).clip(0).alias('Come From Behind L')
     ])
     come_from_behind_grouped = df_loss.group_by('PlayerId').agg([
-        pl.sum('Come From Behind W').alias('Come From Behind W'),
-        pl.sum('Come From Behind L').alias('Come From Behind L')
+        pl.mean('Come From Behind W').alias('Come From Behind W'),
+        pl.mean('Come From Behind L').alias('Come From Behind L')
     ])
     df_result = df_result.join(come_from_behind_grouped, on='PlayerId')
     df_result = df_result.with_columns([
-        (pl.col('Come From Behind W') / pl.col('Record_Count') * 100).round(1).alias('Come-From-Behind Win (%)'),
-        (pl.col('Come From Behind L') / pl.col('Record_Count') * 100).round(1).alias('Come-From-Behind Lose (%)')
+        (pl.col('Come From Behind W') * 100).round(1).alias('Come-From-Behind Win (%)'),
+        (pl.col('Come From Behind L') * 100).round(1).alias('Come-From-Behind Lose (%)')
     ])
 
     # 8. 最終的なデータフレームの整形とカラム名の変更
@@ -167,9 +198,9 @@ def calculate_average_sum_player_loss_with_name(df_loss, df_id_name, count_min=1
         pl.col('PlayerName').alias('Player Name'),
         pl.col('Record_Count').alias('#Games'),
         pl.col('Average_Sum_Player_Loss').alias('Average Total Loss'),
-        pl.col('Average_Sum_Player_Loss_24Empty').alias('Average 24 Empty Loss'),
+        pl.col(f'Average_Sum_Player_Loss_{60-ENDGAME_MOVE}Empty').alias('Average Endgame Loss'),
         pl.col('Win_Rate').alias('Win Rate (%)'),
-        pl.col('Win_Rate_Theoretical').alias('Win Rate @36 (%)'),
+        pl.col('Win_Rate_Theoretical').alias(f'Win Rate @{ENDGAME_MOVE} (%)'),
         pl.col('Come-From-Behind Win (%)'),
         pl.col('Come-From-Behind Lose (%)')
     ])
@@ -287,11 +318,11 @@ def scatter_group_winrate(df1, df2):
     group_colors = ['red', 'blue']
 
     # 散布図をプロット
-    plt.scatter(df1["Win Rate @36 (%)"], df1["Win Rate (%)"], color=group_colors[0], label="Group 1")
-    plt.scatter(df2["Win Rate @36 (%)"], df2["Win Rate (%)"], color=group_colors[1], label="Group 2")
+    plt.scatter(df1[f"Win Rate @{ENDGAME_MOVE} (%)"], df1["Win Rate (%)"], color=group_colors[0], label="Group 1")
+    plt.scatter(df2[f"Win Rate @{ENDGAME_MOVE} (%)"], df2["Win Rate (%)"], color=group_colors[1], label="Group 2")
 
     # ラベルとタイトルを設定
-    plt.xlabel("Win Rate @36 (%)")
+    plt.xlabel(f"Win Rate @{ENDGAME_MOVE} (%)")
     plt.ylabel("Win Rate (%)")
     plt.title("Win Rate Distribution")
     plt.xlim(0, 100)
@@ -321,7 +352,7 @@ def scatter_group_winrate_interactive(df1_, df2_):
     fig = go.Figure()
 
     # Group 1 のデータを追加
-    fig.add_trace(go.Scatter(x=df_combined.filter(pl.col('Group') == 'Group 1')['Win Rate @36 (%)'],
+    fig.add_trace(go.Scatter(x=df_combined.filter(pl.col('Group') == 'Group 1')[f'Win Rate @{ENDGAME_MOVE} (%)'],
                             y=df_combined.filter(pl.col('Group') == 'Group 1')['Win Rate (%)'],
                             mode='markers', name='Group 1',
                             marker=dict(color='red'),
@@ -329,7 +360,7 @@ def scatter_group_winrate_interactive(df1_, df2_):
                             text=df_combined.filter(pl.col('Group') == 'Group 1')['Player Name']))
 
     # Group 2 のデータを追加
-    fig.add_trace(go.Scatter(x=df_combined.filter(pl.col('Group') == 'Group 2')['Win Rate @36 (%)'],
+    fig.add_trace(go.Scatter(x=df_combined.filter(pl.col('Group') == 'Group 2')[f'Win Rate @{ENDGAME_MOVE} (%)'],
                             y=df_combined.filter(pl.col('Group') == 'Group 2')['Win Rate (%)'],
                             mode='markers', name='Group 2',
                             marker=dict(color='blue'),
@@ -338,7 +369,7 @@ def scatter_group_winrate_interactive(df1_, df2_):
 
     # タイトルと軸ラベルを設定
     fig.update_layout(title="Win Rate Distribution",
-                    xaxis_title="Win Rate @36 (%)",
+                    xaxis_title=f"Win Rate @{ENDGAME_MOVE} (%)",
                     yaxis_title="Win Rate (%)",
                     width=600,
                     height=600,
@@ -383,7 +414,7 @@ if st.button('指定した年で計算', on_click=on_button_clicked):
 if 'df_rank_sorted' in st.session_state:
     # 結果を表示
     st.write(
-        """
+        f"""
         ## 全体集計
 
         ### 平均石損ランキング
@@ -391,26 +422,26 @@ if 'df_rank_sorted' in st.session_state:
         - 集計項目
             - #Games: 対局データ数
             - Average Total Loss: 試合中にAIの評価と比べてどれだけ石損したか
-            - Average 24 Empty Loss: 最後の24手でどれだけ石損したか
+            - Average Endgame Loss: 最後の20手でどれだけ石損したか
             - Win Rate (%): 勝率
-            - Win Rate @36 (%): 36手目時点での理論的な勝率
-            - Come-From-Behind Win (%) : 36手目時点から逆転勝ちした割合
-            - Come-From-Behind Lose (%): 36手目時点から逆転負けした割合
+            - Win Rate @{ENDGAME_MOVE} (%): {ENDGAME_MOVE}手目時点での理論的な勝率
+            - Come-From-Behind Win (%) : {ENDGAME_MOVE}手目時点から逆転勝ちした割合
+            - Come-From-Behind Lose (%): {ENDGAME_MOVE}手目時点から逆転負けした割合
         """
     )
     df_rank_sorted = st.session_state['df_rank_sorted']
     st.dataframe(st.session_state['df_rank_sorted'])
 
-    # 上位30位のプレイヤーのAverage Total LossとAverage 24 Empty Lossを折れ線グラフでプロット
+    # 上位30位のプレイヤーのAverage Total LossとAverage Endgame Lossを折れ線グラフでプロット
     top30 = st.session_state['df_rank_sorted'].head(30)
     plt.figure(figsize=(10, 6))
 
     # Average Total Lossのプロット
     plt.plot(np.arange(1, 31, 1), top30['Average Total Loss'], marker='o', label='Average Total Loss')
 
-    # Average 24 Empty Lossのプロット
-    plt.plot(np.arange(1, 31, 1), top30['Average 24 Empty Loss'], marker='x', label='Endgame (37~)')
-    plt.plot(np.arange(1, 31, 1), top30['Average Total Loss'] - top30['Average 24 Empty Loss'], marker='x', label='Midgame (~36)')
+    # Average Endgame Lossのプロット
+    plt.plot(np.arange(1, 31, 1), top30['Average Endgame Loss'], marker='x', label=f'Endgame ({ENDGAME_MOVE+1}~)')
+    plt.plot(np.arange(1, 31, 1), top30['Average Total Loss'] - top30['Average Endgame Loss'], marker='x', label=f'Midgame (~{ENDGAME_MOVE})')
 
     plt.title('Top 30 Players Average Losses')
     plt.xlabel('Player Name')
@@ -419,11 +450,10 @@ if 'df_rank_sorted' in st.session_state:
     # プレイヤー名をx軸のラベルとして設定し、90度回転
     plt.xticks(range(1, 31), top30['Player Name'], rotation=90)
 
-    plt.ylim(0, max(top30['Average Total Loss'].max(), top30['Average 24 Empty Loss'].max()) + 1)  # y軸の最小値を0に設定
+    plt.ylim(0, max(top30['Average Total Loss'].max(), top30['Average Endgame Loss'].max()) + 1)  # y軸の最小値を0に設定
     plt.grid(True)
     plt.legend()  # 凡例の表示
     plt.tight_layout()  # レイアウトの自動調整
-    plt.show()
 
     st.write(" ### Top 30人の平均石損")
     # Streamlitでプロットを表示
@@ -466,7 +496,7 @@ if 'df_rank_sorted' in st.session_state:
         st.write("グループ2の選択")
         selection_method_group2 = st.radio(
             "選択方法を選んでください",
-            ('ランキング範囲を指定', 'Player Nameを直接選択'),
+            ('ランキング範囲を指定', 'Player Name を直接選択'),
             key="selection_method_group2"
         )
         if selection_method_group2 == 'Player Name を直接選択':
@@ -492,14 +522,14 @@ if 'df_rank_sorted' in st.session_state:
         else:
             group2_ids = get_player_ids_from_ranking(st.session_state['df_rank_sorted'], group2_rank_start, group2_rank_end)
 
-        col1, col2 = st.columns(2)
-        with col1:
+        col3, col4 = st.columns(2)
+        with col3:
             # グループ1のPlayer Idに基づいてフィルタリング
             group1_df = df_rank_sorted.filter(pl.col('Player Id').is_in(group1_ids))
             st.write("グループ1のPlayer Id:")
             st.dataframe(group1_df)
 
-        with col2:
+        with col4:
             # グループ2のPlayer Idに基づいてフィルタリング
             group2_df = df_rank_sorted.filter(pl.col('Player Id').is_in(group2_ids))
             st.write("グループ2のPlayer Id:")
