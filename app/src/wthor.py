@@ -262,7 +262,7 @@ class LossCSVHandler:
                 pl.col('L@60L@40_ratio').map_elements(lambda x: round(x*100,1)).alias("L@60,L@40"),
                 pl.col('PerfectEndGame_ratio').map_elements(lambda x: round(x*100,1)).alias('PerfectEndgame'),
                 (-pl.col('PlayerTotalLossOver10Moves_4_mean')-pl.col('PlayerTotalLossOver10Moves_5_mean')).map_elements(lambda x: round(x,2)).alias('EndgameLoss'),
-                (-pl.col('PlayerSigmoidLossOver10Moves_4_mean')-pl.col('PlayerSigmoidLossOver10Moves_5_mean')).map_elements(lambda x: round(x,2)).alias('EndgameSigmoidLoss'),
+                (-pl.col('PlayerSigmoidLossOver10Moves_4_mean')-pl.col('PlayerSigmoidLossOver10Moves_5_mean')).map_elements(lambda x: round(x,3)).alias('EndgameSigmoidLoss'),
             ]
         if player_id_flg:
             selected_col = [pl.col('PlayerId').alias('PlayerId')] + selected_col
