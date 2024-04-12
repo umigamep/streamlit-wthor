@@ -43,7 +43,7 @@ if st.button('指標を計算'):
     df_show = loss_handler.create_basic_stats_df(players=player_ids, years=selected_years, player_id_flg=1)
     df_show = df_show.join(df_id_name, how="left", on="PlayerId").select([
         pl.col(c).alias(c) for c in [
-            'PlayerName', 'Color', '# Games', 'WinRate', 'WinRate@40', 'W@60,W@40', 'W@60,L@40', 'L@60,W@40', 'L@60,L@40', 'PerfectEndgame', 'EndgameLoss', 'EndgameSigmoidLoss',
+            'PlayerName', 'Color', '# Games', 'WinRate', 'WinRate@40', 'W@60,W@40', 'W@60,L@40', 'L@60,W@40', 'L@60,L@40', 'PerfectEndgame', 'EndgameLoss', 'EndgameWLDLoss', 'EndgameSigmoidLoss',
         ]
     ]).filter(pl.col('PlayerName').is_in(selected_players))
     st.write(f"## 選択されたプレイヤーの手番別データ\n デフォルトは勝率順。項目をクリックで並び替え可能")
