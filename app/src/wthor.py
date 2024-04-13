@@ -286,7 +286,7 @@ class LossCSVHandler:
             (-pl.col('PlayerTotalLossOver10Moves_4')-pl.col('PlayerTotalLossOver10Moves_5')).map_elements(lambda x: round(x,2)).alias('EndgameLoss'),
             (-pl.col('PlayerTotalWLDOver10Moves_4')-pl.col('PlayerTotalWLDOver10Moves_5')).map_elements(lambda x: round(x,2)).alias('EndgameWLDLoss'),
             (-pl.col('PlayerSigmoidLossOver10Moves_4')-pl.col('PlayerSigmoidLossOver10Moves_5')).map_elements(lambda x: round(x,3)).alias('EndgameSigmoidLoss'),
-            pl.col('Year'),
+            pl.col('Year').map_elements(lambda x: str(x)).alias('Year'),
             pl.col('TournamentId'),
             pl.col('Transcript'),
         ]).sort(['Year', 'TournamentId'])
