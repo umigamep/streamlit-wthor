@@ -35,13 +35,18 @@ if st.button('指標を計算'):
 
     # Generate and display the plot
     st.write("## 10手ごとの合計石損")
-    fig = loss_handler.plot_PlayerTotalLossOver10Moves(player_id, selected_years)
+    fig = loss_handler.plot_PlayerLossOver10Moves(player_id, selected_years, loss_column='PlayerTotalLossOver10Moves')
     st.pyplot(fig=fig)
+
+    st.write("## 10手ごとの合計WLD損")
+    fig = loss_handler.plot_PlayerLossOver10Moves(player_id, selected_years, loss_column='PlayerTotalWLDOver10Moves')
+    st.pyplot(fig=fig)
+
 
     # 独自指標
     st.write("## 試験的な指標")
-    st.write("### 10手ごとの合計sigmoid勝率損")
-    fig = loss_handler.plot_PlayerSigmoidLossOver10Moves(player_id, selected_years)
+    st.write("### 10手ごとの合計sigmoid損")
+    fig = loss_handler.plot_PlayerLossOver10Moves(player_id, selected_years, loss_column='PlayerSigmoidLossOver10Moves')
     st.pyplot(fig=fig)
 
     # 対戦履歴

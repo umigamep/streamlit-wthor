@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
+import seaborn as sns
 
 class WthorHandler:
     
@@ -273,7 +274,7 @@ class LossCSVHandler:
 
     def create_game_history_df(self, player, years):
         df_id_name = pl.read_csv("app/resources/id_name.csv")
-        df_game_history = self.loss_df.filter(pl.col('Year').is_in(years)).join(
+        df_game_history = self.expand_df.filter(pl.col('Year').is_in(years)).join(
         df_id_name.with_columns([
             pl.col("PlayerId").alias('OpponentId'),
             pl.col("PlayerName").alias('OpponentName')
@@ -282,6 +283,9 @@ class LossCSVHandler:
             pl.struct(['IsBlack','OpponentName']).map_elements(lambda x: player if x['IsBlack']==1 else x['OpponentName']).alias('BlackPlayer'),
             pl.struct(['IsBlack','OpponentName']).map_elements(lambda x: player if x['IsBlack']==0 else x['OpponentName']).alias('WhitePlayer'),
             pl.struct(['IsBlack','PlayerScore']).map_elements(lambda x: f"{32+x['PlayerScore'][-1]/2:.0f}-{32-x['PlayerScore'][-1]/2:.0f}" if x['IsBlack']==1 else f"{32-x['PlayerScore'][-1]/2:.0f}-{32+x['PlayerScore'][-1]/2:.0f}").alias('Result'),
+            (-pl.col('PlayerTotalLossOver10Moves_4')-pl.col('PlayerTotalLossOver10Moves_5')).map_elements(lambda x: round(x,2)).alias('EndgameLoss'),
+            (-pl.col('PlayerTotalWLDOver10Moves_4')-pl.col('PlayerTotalWLDOver10Moves_5')).map_elements(lambda x: round(x,2)).alias('EndgameWLDLoss'),
+            (-pl.col('PlayerSigmoidLossOver10Moves_4')-pl.col('PlayerSigmoidLossOver10Moves_5')).map_elements(lambda x: round(x,3)).alias('EndgameSigmoidLoss'),
             pl.col('Year'),
             pl.col('TournamentId'),
             pl.col('Transcript'),
@@ -290,86 +294,26 @@ class LossCSVHandler:
         self.df_game_history = df_game_history
         return df_game_history
     # plot系
-    def plot_PlayerTotalLossOver10Moves(self, player, years):
+    def plot_PlayerLossOver10Moves(self, player, years, loss_column):
+        df = self.create_expand_df([player], years)
         
-        df = self.create_expand_df([player], years)
-        np_black = df.filter(pl.col('IsBlack') == 1).select([f"PlayerTotalLossOver10Moves_{i}" for i in range(self.n_blocks)]).to_numpy()
-        np_white = df.filter(pl.col('IsBlack') == 0).select([f"PlayerTotalLossOver10Moves_{i}" for i in range(self.n_blocks)]).to_numpy()
-        def calc_ylim(data):
-            Q1 = np.quantile(data, 0.25)
-            Q3 = np.quantile(data, 0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 2 * IQR
-            return lower_bound, upper_bound
-
-        # 各データセットの外れ値を除外した範囲を計算
-        black_lower, black_upper = calc_ylim(np_black)
-        white_lower, white_upper = calc_ylim(np_white)
-
-        # y軸の範囲を統一
-        y_min = -0.5 #min(black_lower, white_lower)
-        y_max = 3 + max(black_upper, white_upper)
+        np_black = df.filter(pl.col('IsBlack') == 1).select([f"{loss_column}_{i}" for i in range(self.n_blocks)]).to_numpy()
+        np_white = df.filter(pl.col('IsBlack') == 0).select([f"{loss_column}_{i}" for i in range(self.n_blocks)]).to_numpy()
 
         fig = plt.figure(figsize=(10,4))
         ax1 = fig.add_subplot(1,2,1)
-        ax1.boxplot(np_black, sym="")
-        ax1.plot([i+1 for i in range(self.n_blocks)],np_black.mean(axis=0), '+', label='average')
+        sns.boxplot(np_black, color='gray', ax=ax1, fill=None, showfliers=False)
+        ax1.plot(np_black.mean(axis=0), 'd', label='average', color="red", markersize=6)
         ax1.set_xticklabels(['1~10','11~20','21~30','31~40','41~50','51~60']) 
         ax1.set_ylabel('Total Loss')
-        ax1.set_ylim(y_min, y_max)
         ax1.set_title(f"Black ({len(np_black)} games)")
         ax1.grid(ls=":")
         ax1.legend()
 
         ax2 = fig.add_subplot(1,2,2)
-        ax2.boxplot(np_white, sym="")
-        ax2.plot([i+1 for i in range(self.n_blocks)],np_white.mean(axis=0), '+', label='average')
+        sns.boxplot(np_white, color='gray', ax=ax2, fill=None, showfliers=False)
+        ax2.plot(np_white.mean(axis=0), 'd', label='average', color="red", markersize=6)
         ax2.set_xticklabels(['1~10','11~20','21~30','31~40','41~50','51~60']) 
-        ax2.set_ylim(y_min, y_max)
-        ax2.set_title(f"White ({len(np_white)} games)")
-        ax2.grid(ls=":")
-        ax2.legend()
-
-        return fig
-
-    def plot_PlayerSigmoidLossOver10Moves(self, player, years):
-        df = self.create_expand_df([player], years)
-        np_black = df.filter(pl.col('IsBlack') == 1).select([f"PlayerSigmoidLossOver10Moves_{i}" for i in range(self.n_blocks)]).to_numpy()
-        np_white = df.filter(pl.col('IsBlack') == 0).select([f"PlayerSigmoidLossOver10Moves_{i}" for i in range(self.n_blocks)]).to_numpy()
-    
-        def calc_ylim(data):
-            Q1 = np.quantile(data, 0.25)
-            Q3 = np.quantile(data, 0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 2 * IQR
-            return lower_bound, upper_bound
-
-        # 各データセットの外れ値を除外した範囲を計算
-        black_lower, black_upper = calc_ylim(np_black)
-        white_lower, white_upper = calc_ylim(np_white)
-
-        # y軸の範囲を統一
-        y_min = -0.03#min(black_lower, white_lower)
-        y_max = 0.1+max(black_upper, white_upper)
-
-        fig = plt.figure(figsize=(10,4))
-        ax1 = fig.add_subplot(1,2,1)
-        ax1.boxplot(np_black, sym="")
-        ax1.plot([i+1 for i in range(self.n_blocks)],np_black.mean(axis=0), '+', label='average')
-        ax1.set_xticklabels(['1~10','11~20','21~30','31~40','41~50','51~60']) 
-        ax1.set_ylabel('Total Loss')
-        ax1.set_ylim(y_min, y_max)
-        ax1.set_title(f"Black ({len(np_black)} games)")
-        ax1.grid(ls=":")
-        ax1.legend()
-
-        ax2 = fig.add_subplot(1,2,2)
-        ax2.boxplot(np_white, sym="")
-        ax2.plot([i+1 for i in range(self.n_blocks)],np_white.mean(axis=0), '+', label='average')
-        ax2.set_xticklabels(['1~10','11~20','21~30','31~40','41~50','51~60']) 
-        ax2.set_ylim(y_min, y_max)
         ax2.set_title(f"White ({len(np_white)} games)")
         ax2.grid(ls=":")
         ax2.legend()
