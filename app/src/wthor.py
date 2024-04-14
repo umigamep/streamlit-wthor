@@ -128,6 +128,8 @@ class WthorHandler:
         ])
         df.write_csv(save_path)
     
+
+# df_lossを操作するクラス
 class LossCSVHandler:
     def __init__(self, path):
         if len(path)>0:
@@ -194,10 +196,12 @@ class LossCSVHandler:
                 lambda x: (x['PlayerIsWin'][59] + 0.01*x['IsBlack'] <= 0) & (x['PlayerIsWin'][39] + 0.01*x['IsBlack'] <= 0), return_dtype=pl.Int64).alias('L@60L@40'),
             pl.col('PlayerLoss').map_elements(lambda x: x[39:].sum() == 0, return_dtype=pl.Int64).alias('PerfectEndGame'),
             pl.col('PlayerScore').map_elements(
-                lambda x: np.concatenate(([0], np.diff(1 / (1 + np.exp(-x / 6)))))
+                lambda x: np.diff(1 / (1 + np.exp(-x / 6)))
             ).map_elements(
                 lambda x: [(np.abs(v)-v)/2 for v in x]
-            ).map_elements(lambda x: self.loss_sum_over_n_moves(x, n_moves=self.n_moves)).alias('PlayerSigmoidLossOver10Moves')
+            ).alias('PlayerSigmoidLoss'),
+        ]).with_columns([
+            pl.col('PlayerSigmoidLoss').map_elements(lambda x: self.loss_sum_over_n_moves(x, n_moves=self.n_moves)).alias('PlayerSigmoidLossOver10Moves')
         ])
     
         self.performance_df = df
