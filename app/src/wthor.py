@@ -177,6 +177,7 @@ class LossCSVHandler:
         average_loss_array = pl.Series([(loss_array[i*n_moves: (i+1)*n_moves]).sum() for i in range(n_blocks)])
         return average_loss_array
     
+    # GameごとのPlayerのパフォーマンスの計算を集約
     def calc_players_performance(self, players, years):
         df = self.loss_df.filter(pl.col('PlayerId').is_in(players) & pl.col('Year').is_in(years))
         df = df.with_columns([
@@ -207,6 +208,7 @@ class LossCSVHandler:
         self.performance_df = df
         return df
     
+    # List型のカラムをカラムに展開する
     def expand_array_column(self, df, column, size):
         # 一度に追加するとなぜかうまくいかないので、一旦逐次追加する
         # return df.with_columns([pl.col(column).map_elements(lambda x: x[i]).alias(f"{column}_{i}") for i in range(size)])
@@ -224,6 +226,8 @@ class LossCSVHandler:
         self.expand_df = df
         return df
     
+    # Playerごとの指標の元になる指標を集約
+    # UIではこのdfを加工して表示
     def calc_players_stats(self, players, years):
         df = self.create_expand_df(players, years)
 
