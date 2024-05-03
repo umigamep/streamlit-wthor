@@ -1,4 +1,5 @@
 import streamlit as st
+import tempfile
 
 from src.OthelloCV import OthelloCV
 
@@ -20,11 +21,12 @@ start_color = st.radio("手番を選んでください:", options=["black", "whi
 # ユーザが画像をアップロードした後の処理
 if uploaded_file is not None:
     # 画像ファイルを一時保存
-    with open("temp_image.png", "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    temp_file.write(uploaded_file.read())
     
     # 画像のpathを渡してOthelloCVを初期化
-    othello_cv = OthelloCV(image_path="temp_image.png")
+    othello_cv = OthelloCV(image_path=temp_file.name)
+    temp_file.close()
 
     # 切り抜かれた画像を表示
     fig = othello_cv.draw_othello_board_mono()
