@@ -66,7 +66,7 @@ class OthelloCV:
         ret = self.convert_board_to_string()
 
         hamlite_template = """
-https://reversi-ai.appspot.com/v1.62/hamlite.html?&lastmove_check=on&lastmove_mark=num&start_board={start_board}&start_color={start_color}&ai=on
+https://umigamep.github.io/othello_board_js/?start_board={start_board}&start_color={start_color}
         """.format(start_board=ret, start_color=start_color)
         return hamlite_template
     
