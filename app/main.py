@@ -22,7 +22,7 @@ st.write(
 
     おまけでオセクエのスクショを処理するツールを作成しました。
 
-    - from screenshot to hamlite: オセクエのスクショからhamliteのリンクを作成します。
+    - from screenshot to board: オセクエのスクショから実際に遊べる盤面を作成します。
 
     ### 参考リンク
 
