@@ -1,5 +1,6 @@
 import streamlit as st
 import tempfile
+import streamlit.components.v1 as components
 
 from src.OthelloCV import OthelloCV
 
@@ -29,11 +30,12 @@ if uploaded_file is not None:
     temp_file.close()
 
     # 切り抜かれた画像を表示
-    fig = othello_cv.draw_othello_board_mono()
-    st.pyplot(fig)
+    # fig = othello_cv.draw_othello_board_mono()
+    # st.pyplot(fig)
 
     # HamliteのURLを作成
     url = othello_cv.get_hamlite(start_color=start_color)
-    st.write(f"Hamlite URL: [{url}]({url})")
+    components.iframe(url, scrolling=True, width=300, height=400)
+    #st.write(f"Hamlite URL: [{url}]({url})")
 else:
-    st.write("画像をアップロードしてください。")
+    st.write("画像が選択されていません")
