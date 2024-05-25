@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats
+
 class OthelloCV:
     def __init__(self, image_path):
         self.image = cv2.imread(image_path)
@@ -12,8 +14,8 @@ class OthelloCV:
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
         # 緑色の範囲を定義 (これは調整が必要な場合があります)
-        lower_green = np.array([50, 100, 100])
-        upper_green = np.array([70, 255, 255])
+        lower_green = np.array([40, 90, 90])
+        upper_green = np.array([80, 255, 255])
         
         # 緑色のマスクを作成
         mask = cv2.inRange(hsv_image, lower_green, upper_green)
@@ -34,7 +36,20 @@ class OthelloCV:
         else:
             # 緑の領域が見つからなかった場合
             return None
-        
+    
+    def resize_with_mode(self, gray_image, new_size=(8, 8)):
+        h, w = gray_image.shape
+        resized_image = np.zeros(new_size, dtype=np.uint8)
+        block_size_x = w // new_size[0]
+        block_size_y = h // new_size[1]
+
+        for i in range(new_size[0]):
+            for j in range(new_size[1]):
+                block = gray_image[j*block_size_y:(j+1)*block_size_y, i*block_size_x:(i+1)*block_size_x]
+                mode = stats.mode(block, axis=None)[0]
+                resized_image[j, i] = mode
+        return resized_image
+
     def trim_image(self, image):
         image_trim = self.crop_green_rectangle(image)
         if image_trim is None:
@@ -47,16 +62,17 @@ class OthelloCV:
         image_trim_cut = image_trim[trim_col:image_trim.shape[0]-trim_col, trim_row:image_trim.shape[1]-trim_row, :]
 
         gray_image = cv2.cvtColor(image_trim_cut, cv2.COLOR_RGB2GRAY)
-        resized_image = cv2.resize(gray_image, (8, 8))
+        # resized_image = cv2.resize(gray_image, (8, 8))
+        resized_image = self.resize_with_mode(gray_image, (8, 8))
 
         return image_trim_cut, gray_image, resized_image
     
     def convert_board_to_string(self):
         ret = ""
         for stone in self.resized_image.flatten():
-            if stone > 215:
+            if stone > 205:
                 ret += "O"
-            elif stone < 40:
+            elif stone < 50:
                 ret += "X"
             else:
                 ret += "-"
