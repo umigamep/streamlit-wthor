@@ -36,6 +36,58 @@ class OthelloCV:
         else:
             # 緑の領域が見つからなかった場合
             return None
+        
+    def find_board_grid(self, image):
+        # Convert to HSV color space
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        
+        # Define the range for green color (adjusted)
+        lower_green = np.array([30, 40, 40])
+        upper_green = np.array([90, 255, 255])
+        
+        # Create a mask for the green color
+        mask = cv2.inRange(hsv_image, lower_green, upper_green)
+        
+        # Apply edge detection to find the grid lines
+        edges = cv2.Canny(mask, 50, 150, apertureSize=3, L2gradient=True)
+        
+        # Detect lines using Hough Transform
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+        
+        if lines is None:
+            print("No lines detected.")
+            return None
+        
+        # Create an empty image to draw lines on
+        line_image = np.zeros_like(image)
+        
+        # Draw the detected lines on the empty image
+        for line in lines:
+            for x1, y1, x2, y2 in line:
+                cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        
+        # Display the image with detected lines
+        # plt.imshow(cv2.cvtColor(line_image, cv2.COLOR_BGR2RGB))
+        # plt.title('Detected Lines')
+        # plt.show()
+        
+        # Find the bounding box of the board based on detected lines
+        min_x, min_y, max_x, max_y = float('inf'), float('inf'), 0, 0
+        
+        for line in lines:
+            for x1, y1, x2, y2 in line:
+                min_x, min_y = min(min_x, x1, x2), min(min_y, y1, y2)
+                max_x, max_y = max(max_x, x1, x2), max(max_y, y1, y2)
+        
+        # Return the cropped image based on the bounding box
+        cropped_image = image[min_y:max_y, min_x:max_x]
+        
+        # Display the cropped image
+        # plt.imshow(cv2.cvtColor(cropped_image, cv2.COLOR_BGR2RGB))
+        # plt.title('Cropped Image')
+        # plt.show()
+    
+        return cropped_image
     
     def resize_with_mode(self, gray_image, new_size=(8, 8)):
         h, w = gray_image.shape
@@ -51,28 +103,49 @@ class OthelloCV:
         return resized_image
 
     def trim_image(self, image):
-        image_trim = self.crop_green_rectangle(image)
+        image_trim = self.find_board_grid(image) #self.crop_green_rectangle(image)
         if image_trim is None:
             print("緑の領域が見つかりませんでした。")
             return None, None, None  # 適切な値を返すか、例外を投げる
 
-        cut_ratio = 0.05
+        cut_ratio = 0.00
         trim_col = int(image_trim.shape[0] * cut_ratio)
         trim_row = int(image_trim.shape[1] * cut_ratio)
         image_trim_cut = image_trim[trim_col:image_trim.shape[0]-trim_col, trim_row:image_trim.shape[1]-trim_row, :]
 
         gray_image = cv2.cvtColor(image_trim_cut, cv2.COLOR_RGB2GRAY)
-        # resized_image = cv2.resize(gray_image, (8, 8))
-        resized_image = self.resize_with_mode(gray_image, (8, 8))
+        
+        resized_image_cv = cv2.resize(gray_image, (8, 8))
+        resized_image_cv[resized_image_cv < 50] = 0
+        resized_image_cv[resized_image_cv > 200] = 255
+
+        resized_image_mode = self.resize_with_mode(gray_image)
+        resized_image_mode[resized_image_mode < 50] = 0
+        resized_image_mode[resized_image_mode > 200] = 255
+
+        # 新しい行列を作成
+        resized_image = np.full((8, 8), 122, dtype=np.uint8)
+
+        # どちらかが0ならば0
+        resized_image[(resized_image_cv == 0) | (resized_image_mode == 0)] = 0
+
+        # どちらかが255ならば255
+        resized_image[(resized_image_cv == 255) | (resized_image_mode == 255)] = 255
+
+        # plt.imshow(gray_image, cmap="gray")
+        # plt.show()
+        # print(resized_image)
+        # plt.imshow(resized_image, cmap="gray")
+        # plt.show()
 
         return image_trim_cut, gray_image, resized_image
     
     def convert_board_to_string(self):
         ret = ""
         for stone in self.resized_image.flatten():
-            if stone > 205:
+            if stone > 200:
                 ret += "O"
-            elif stone < 50:
+            elif stone < 60:
                 ret += "X"
             else:
                 ret += "-"
