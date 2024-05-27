@@ -108,7 +108,7 @@ class OthelloCV:
             print("緑の領域が見つかりませんでした。")
             return None, None, None  # 適切な値を返すか、例外を投げる
 
-        cut_ratio = 0.00
+        cut_ratio = 0.03
         trim_col = int(image_trim.shape[0] * cut_ratio)
         trim_row = int(image_trim.shape[1] * cut_ratio)
         image_trim_cut = image_trim[trim_col:image_trim.shape[0]-trim_col, trim_row:image_trim.shape[1]-trim_row, :]
