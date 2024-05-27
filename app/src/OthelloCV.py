@@ -42,8 +42,8 @@ class OthelloCV:
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         
         # Define the range for green color (adjusted)
-        lower_green = np.array([40, 80, 80])
-        upper_green = np.array([90, 255, 255])
+        lower_green = np.array([0, 100, 0])
+        upper_green = np.array([80, 255, 80])
         
         # Create a mask for the green color
         mask = cv2.inRange(hsv_image, lower_green, upper_green)
