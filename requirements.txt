@@ -6,3 +6,4 @@ opencv-python-headless==4.9.0.80
 polars==0.20.0
 plotly==5.18.0
 seaborn==0.13.2
+scipy==1.13.1
