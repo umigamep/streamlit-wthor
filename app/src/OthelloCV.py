@@ -88,10 +88,10 @@ class OthelloCV:
         for i in range(8):
             for j in range(8):
                 block = resized_image_16[2*j:2*j+2, 2*i:2*i+2]
-                if np.min(block) < 35:
-                    resized_image[j, i] = 0
-                elif np.max(block) > 220:
+                if np.max(block) > 220:
                     resized_image[j, i] = 255
+                elif np.min(block) < 35:
+                    resized_image[j, i] = 0
                 else:
                     resized_image[j, i] = 122
         return resized_image
