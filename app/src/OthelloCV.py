@@ -18,37 +18,30 @@ class OthelloCV:
         If the height is 1.5 times the width or more, crop the bottom 1/4 of the image.
         """
         image = cv2.imread(image_path)
+        
+        # 左右の端を3ピクセルの黒線で塗りつぶす
+        image[:, :3] = 0  # 左端を黒で塗りつぶす
+        image[:, -3:] = 0  # 右端を黒で塗りつぶす
+
         h, w = image.shape[:2]
         if h >= 1.5 * w:
-            image = image[:int(h * 0.75), :]
+            image = image[int(h * 0.1):int(h * 0.8), :, :]
         return image
-    
-    def crop_green_rectangle(self, image):
-        """
-        Detect and crop the largest green rectangle from the image.
-        """
-        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        lower_green = np.array([30, 80, 80])
-        upper_green = np.array([80, 255, 255])
-        mask = cv2.inRange(hsv_image, lower_green, upper_green)
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        if contours:
-            largest_contour = max(contours, key=cv2.contourArea)
-            x, y, w, h = cv2.boundingRect(largest_contour)
-            cropped_image = image[y:y+h, x:x+w]
-            return cropped_image
-        return None
         
     def find_board_grid(self, image):
         """
         Detect the 8x8 board grid in the image.
         """
         hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        self.lower_green = np.array([40, 80, 80])
-        self.upper_green = np.array([90, 255, 200])
-        mask = cv2.inRange(hsv_image, self.lower_green, self.upper_green)
+        lower_green = np.array([30, 60, 20])
+        upper_green = np.array([90, 255, 255])
+        mask = cv2.inRange(hsv_image, lower_green, upper_green)
+        # plt.imshow(mask)
+        # plt.show()
         edges = cv2.Canny(mask, 50, 150, apertureSize=3, L2gradient=True)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+        # plt.imshow(edges)
+        # plt.show()
+        lines = cv2.HoughLinesP(edges, 3, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
         if lines is None:
             print("No lines detected.")
             return None
@@ -90,7 +83,7 @@ class OthelloCV:
                 block = resized_image_16[2*j:2*j+2, 2*i:2*i+2]
                 if np.max(block) > 220:
                     resized_image[j, i] = 255
-                elif np.min(block) < 35:
+                elif np.min(block) < 40:
                     resized_image[j, i] = 0
                 else:
                     resized_image[j, i] = 122
@@ -101,6 +94,8 @@ class OthelloCV:
         Trim the image to the board grid and preprocess it.
         """
         image_trim = self.find_board_grid(image)
+        # plt.imshow(image_trim)
+        # plt.show()
         if image_trim is None:
             print("緑の領域が見つかりませんでした。")
             return None, None, None
@@ -171,7 +166,7 @@ class OthelloCV:
         board_img = np.full((board_size+1, board_size+1), 180, dtype=np.uint8)
         for i in range(0, board_size, cell_size):
             for j in range(0, board_size, cell_size):
-                cv2.rectangle(board_img, (i, j), (i + cell_size, j + cell_size), (0), 1)
+                cv2.rectangle(board_img, (i, j), (i + cell_size, j + cell_size), (0), 2)
         blacks, whites = 0, 0
         for index, char in enumerate(board_string):
             row = index // 8
@@ -184,7 +179,7 @@ class OthelloCV:
             elif char == 'O':
                 cv2.circle(board_img, center, radius, (255), -1)
                 whites += 1
-        fig, ax = plt.subplots(figsize=(7, 7))
+        fig, ax = plt.subplots(figsize=(4, 4))
         sns.heatmap(board_img, cmap="binary_r", cbar=False, square=True, xticklabels=False, yticklabels=False, ax=ax)
         ax.set_xlabel(f"⚫️{blacks}     ⚪️{whites}", size=30)
         return fig
