@@ -49,6 +49,7 @@ class OthelloCV:
         for line in lines:
             for x1, y1, x2, y2 in line:
                 cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.line(image, (x1, y1), (x2, y2), (60, 120, 120), 3)
         min_x, min_y, max_x, max_y = float('inf'), float('inf'), 0, 0
         for line in lines:
             for x1, y1, x2, y2 in line:
@@ -76,17 +77,22 @@ class OthelloCV:
         """
         Resize the grayscale image in two steps to an 8x8 image.
         """
-        resized_image_16 = cv2.resize(gray_image, (16, 16))
+        resized_image_24 = cv2.resize(gray_image, (24, 24))
+        plt.imshow(resized_image_24, cmap="gray")
+        plt.show()
         resized_image = np.zeros((8, 8), dtype=np.uint8)
         for i in range(8):
             for j in range(8):
-                block = resized_image_16[2*j:2*j+2, 2*i:2*i+2]
-                if np.max(block) > 220:
+                block = resized_image_24[3*j:3*j+3, 3*i:3*i+3].flatten()
+                block[np.argmax(block)] = 100
+                block[np.argmin(block)] = 100
+                if np.max(block) > 230:
                     resized_image[j, i] = 255
                 elif np.min(block) < 40:
                     resized_image[j, i] = 0
                 else:
                     resized_image[j, i] = 122
+
         return resized_image
 
     def trim_image(self, image):
