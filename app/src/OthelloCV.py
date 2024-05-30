@@ -124,7 +124,7 @@ class OthelloCV:
                 ret += "-"
         return ret
     
-    def convert_resized_to_hamlite(self, start_color="black"):
+    def convert_resized_to_board(self, start_color="black"):
         """
         Convert the resized image to a HamLite URL.
         """
@@ -132,11 +132,25 @@ class OthelloCV:
         hamlite_template = f"https://umigamep.github.io/othello_board_js/?start_board={ret}&start_color={start_color}"
         return hamlite_template
     
+    def convert_resized_to_game(self, start_color="black"):
+        """
+        Convert the resized image to a HamLite URL.
+        """
+        ret = self.convert_board_to_string()
+        hamlite_template = f"https://umigamep.github.io/othello_board_js/?start_board={ret}&start_color={start_color}&game_mode=on"
+        return hamlite_template
+
     def get_hamlite(self, start_color="black"):
         """
         Get the HamLite URL for the current board state.
         """
-        return self.convert_resized_to_hamlite(start_color=start_color)
+        return self.convert_resized_to_board(start_color=start_color)
+    
+    def get_game(self, start_color="black"):
+        """
+        Get the HamLite URL for the current board state.
+        """
+        return self.convert_resized_to_game(start_color=start_color)
     
     def get_image_trim_cut(self):
         """
